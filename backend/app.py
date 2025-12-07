@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 from typing import Annotated
 from fastapi import FastAPI, WebSocket, Query, WebSocketException, status
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.websockets import WebSocketDisconnect
 from bot import ChatBot
 import traceback
 
@@ -25,14 +26,10 @@ app.add_middleware(
 async def conversation(
     *,
     websocket: WebSocket,
-    session: Annotated[str | None, Query()] = None,
     chat_id: str
 ):
     
     await websocket.accept()
-    
-    if session is None:
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
     
     try:
         bot = ChatBot(chat_id)
@@ -46,7 +43,9 @@ async def conversation(
             for response in bot.process_message(data):
                 # Send response
                 await websocket.send_text(response)
-            
+    
+    except WebSocketDisconnect:
+        print(f"Chat {chat_id} disconnected normally")
     except Exception as e:
         traceback.print_exc()
-        print(f"Chat {chat_id} disconnected: {e}")
+        print(f"Chat {chat_id} error: {e}")
