@@ -1,7 +1,11 @@
+from dotenv import load_dotenv
 from typing import Annotated
 from fastapi import FastAPI, WebSocket, Query, WebSocketException, status
 from fastapi.middleware.cors import CORSMiddleware
-from bot import process_message
+from bot import ChatBot
+import traceback
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -31,15 +35,18 @@ async def conversation(
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
     
     try:
+        bot = ChatBot(chat_id)
+        bot.initialize_chat()
         # Continuous message loop
         while True:
             # Wait for incoming message
             data = await websocket.receive_text()
             
             # Process the message
-            for response in process_message(chat_id, data):
+            for response in bot.process_message(data):
                 # Send response
                 await websocket.send_text(response)
             
     except Exception as e:
+        traceback.print_exc()
         print(f"Chat {chat_id} disconnected: {e}")
